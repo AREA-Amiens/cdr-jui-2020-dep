@@ -40,10 +40,6 @@ void setup() {
   SD.begin(chipSelect);
   Serial2.begin(9600);
   Serial.begin(9600);
-  // for(int i=0;i<20;i++){
-  //   Serial2.println(i);
-  //   delay(1000);
-  // }
   MsTimer2::set(1,IntrerrupTimer);
   MsTimer2::start();
   pinMode(ENCODEUR_DROIT_A,INPUT_PULLUP);
@@ -71,7 +67,6 @@ void setup() {
 void loop(){
   machineEtatStrategie();
   machineEtatDeplacement();
-
 }
 
 void machineEtatStrategie(){
@@ -228,22 +223,14 @@ boolean pretraitement(){
 }
 
 boolean conparaison8Byte(byte ch1[8],String ch2){
-  //serial.println("f1");
   for(i=1;i<8;i++){
-    //serial.print(ch1[i]);
-    //serial.print(" ");
-    //serial.println(ch2[i]);
     if(ch1[i]!=ch2[i])return false;
   }
   return true;
 }
 
 boolean conparaison8ByteByte(byte ch1[8],byte ch2[8]){
-  //serial.println("f2");
   for(i=1;i<8;i++){
-    //serial.print(ch1[i]);
-    //serial.print(" ");
-    //serial.println(ch2[i]);
     if(ch1[i]!=ch2[i])return false;
   }
   return true;
@@ -254,11 +241,9 @@ boolean envoieData(String chaine){
     envoieNbTrame++;
     numTrameEnvoie++;
     Serial2.print((char)envoieNbTrame);
-    //serial.print((char)envoieNbTrame);
     trameEnvoie[0]=envoieNbTrame;
     for(i=1;i<8;i++){
       Serial2.print((char)255);
-      //serial.print((char)255);
     }
     etatComme=0;
     verificationByte1=true;
@@ -266,33 +251,26 @@ boolean envoieData(String chaine){
   if(!dernierTrame){
     if(conparaison8ByteByte(receptionComme,trameEnvoie)){
       numTrameEnvoie=0;
-      //if(dernierTrame)return true;
       envoieNbTrame++;
       numTrameEnvoie++;
       Serial2.print((char)envoieNbTrame);
-      //serial.print((char)envoieNbTrame);
       trameEnvoie[0]=envoieNbTrame;
       for(i=((envoieNbTrame-1)*7);i<envoieNbTrame*7;i++){
         if(chaine[i]=='\0'){
           break;
         }
-        ////serial.print(i);
         trameEnvoie[i-((envoieNbTrame-1)*7)+1]=chaine[i];
         Serial2.print(chaine[i]);
-        //serial.print(chaine[i]);
-
       }
       for(;i<envoieNbTrame*7;i++){
         trameEnvoie[i-((envoieNbTrame-1)*7)+1]='\0';
         Serial2.print('\0');
-        //serial.print('\0');
         dernierTrame=true;
       }
     }else{
       numTrameEnvoie++;
       if(numTrameEnvoie==11)etatComme=0;
       Serial2.print((char)envoieNbTrame);
-      //serial.print((char)envoieNbTrame);
       trameEnvoie[0]=envoieNbTrame;
       for(i=(envoieNbTrame-1)*7;i<envoieNbTrame*7;i++){
         if(chaine[i]=='\0'){
@@ -300,13 +278,10 @@ boolean envoieData(String chaine){
         }
         trameEnvoie[i-((envoieNbTrame-1)*7)+1]=chaine[i];
         Serial2.print(chaine[i]);
-        //serial.print(chaine[i]);
-
       }
       for(;i<envoieNbTrame*7;i++){
         trameEnvoie[i-((envoieNbTrame-1)*7)+1]='\0';
         Serial2.print('\0');
-        //serial.print('\0');
       }
     }
   }
@@ -330,12 +305,9 @@ void chaineRenvoie(int nb,String motRenvoie,byte receptionComme2[8]){
 }
 
 boolean receptionData(){
-  //mot de 255
   mot255[0]=receptionComme[0];
-  //fin de creation du mot de mot255
   chaineRenvoie(8,"",receptionComme);
   if(conparaison8Byte(receptionComme,mot255)){
-
     return true;
   }
   for(i=1;i<8;i++){
@@ -386,41 +358,67 @@ void fonctionDeTraitement(){
           etatComme=0;
         }
       break;
-      case 2:
+      case 2://demande ecriture + ecriture
       if(!passe1) if(receptionData())passe1=true;
       if(conparaison8Byte(receptionComme," 2345678")&&passe1&&passe){
+        Serial.println("testes");
+        myFile=SD.open("fichier.txt", FILE_WRITE);
+        myFile.println("dataRecue");
+        myFile.close();
+        for(i=0;i<500;i++){
+          dataRecue[i]=0;
+        }
+        endroiChaine=0;
         chaineRenvoie(1,"dte0fin",receptionComme);
+        for(i=0;i<500;i++){
+          dataRecue[i]=0;
+        }
+        endroiChaine=0;
         etatComme=0;
       }
         if(!passe2) if(receptionData())passe2=true;
         if(conparaison8Byte(receptionComme," 2345678")&&passe2&&etatComme==2){
+          retireLesZeroInutile();
+          fichier=dataRecue;
 
-          chaineRenvoie(1,"dte00ok",receptionComme);
-          // chaineRenvoie(1,"dtd0nok",receptionComme);
-          // chaineRenvoie(1,"dtd0int",receptionComme);//chemin iterdie
-          //etatComme=0;
-          //passe=true;
+          if(comparChen(dataRecue,"chemin.txt"))chaineRenvoie(1,"dte0int",receptionComme);//chemin interdie
+          else if(SD.exists(fichier)){
+            SD.remove(fichier);
+
+            chaineRenvoie(1,"dte00ok",receptionComme);
+          }else{
+
+            chaineRenvoie(1,"dte00ok",receptionComme);
+          }
           passe=true;
           passe1=false;
           passe2=true;
-
         }
-
-
-
       break;
-      case 3:
-        if(!passe) if(receptionData())passe=true;
-        if(conparaison8Byte(receptionComme," 2345678")&&passe){
-          //condition sur chemint acsecible
-          //chaineRenvoie(1,"dtr0ntr",receptionComme);
-          chaineRenvoie(1,"dtr00tr",receptionComme);
+      case 3://demande de l'ecture
+        if(!passe) if(receptionData()){
+          passe=true;
+          Serial.println("TEST 3");
+        }
+        if(conparaison8Byte(receptionComme," 2345678")&&passe){//condition sur chemint acsecible
+          retireLesZeroInutile();
+          fichier=dataRecue;
+          if(SD.exists(fichier)){
+            SD.open(fichier);
+            chaineRenvoie(1,"dtr00tr",receptionComme);
+          }else{
 
+            chaineRenvoie(1,"dtr0ntr",receptionComme);
+          }
+          for(i=0;i<500;i++){
+            dataRecue[i]=0;
+          }
         }
         if(receptionCommeP[0]!=receptionComme[0]&&conparaison8Byte(receptionComme," dtr1000")){
           //condition sur chemint acsecible
           //chaineRenvoie(1,"dtr0ntr",receptionComme);
           chaineRenvoie(1,"dtr00tr",receptionComme);
+          Serial.print("TEST 2");
         }
         if(conparaison8Byte(receptionComme," dtrpret")){
           boleEnvoie=true;
@@ -431,23 +429,21 @@ void fonctionDeTraitement(){
           envoieData(chaineTeste);
         }
       break;
-      case 4:
+      case 4://Supressin dun fichier
         if(!passeS) if(receptionData())passeS=true;
         if(conparaison8Byte(receptionComme," 2345678")&&passeS){
-          Serial.print("//");
-          Serial.println(dataRecue);
           retireLesZeroInutile();
-          Serial.print("//");
-          Serial.println(dataRecue);
           fichier=dataRecue;
-          Serial.println(dataRecue);
-        //Serial.println(&dataRecue);
-          Serial.println(*dataRecue);
           if(comparChen(dataRecue,"chemin.txt"))chaineRenvoie(1,"dtd0int",receptionComme);
-          else if(SD.exists(fichier))chaineRenvoie(1,"dtd0fin",receptionComme);
+          else if(SD.exists(fichier)){
+            SD.remove(fichier);
+            chaineRenvoie(1,"dtd0fin",receptionComme);
+          }
           else chaineRenvoie(1,"dtd00nt",receptionComme);
           etatComme=0;
-
+          for(i=0;i<500;i++){
+            dataRecue[i]=0;
+          }
           endroiChaine=0;
         }
       break;
